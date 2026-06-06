@@ -1,18 +1,25 @@
 # justmd
 
-一个极简的桌面 Markdown 编辑器，基于 Tauri + React + TypeScript。
+[English](README_EN.md) | 中文
+
+> 在网上搜索很少有纯粹的 Markdown 编辑器——Typora 收费，编码领域的 IDE 又太重、冗余功能太多，在线工具不是本地客户端，Windows 自带的记事本写 Markdown 又不太舒服。所以我想做一个**普通人也能轻松上手的轻量级 Markdown 编辑和预览软件**，不堆砌功能，只专注于写好、看好 Markdown。
+
+一个极简的桌面 Markdown 编辑器，基于 Tauri + React + CodeMirror 6。
 
 ## 功能
 
-- **三态切换**：编辑 / 编辑+预览 / 纯预览
-- **左右分屏**：比例可拖拽调整
-- **原生编辑体验**：纯文本编辑，搜索替换
+- **三态切换**：编辑 / 编辑+预览 / 纯预览，比例可拖拽调整
+- **专业编辑体验**：CodeMirror 6 驱动，支持语法高亮、多光标、查找替换、自动括号匹配
 - **实时预览**：基于 react-markdown，支持 GFM、KaTeX 数学公式、Mermaid 图表
-- **Shiki 代码高亮**：VS Code 同款高亮引擎
+- **代码高亮**：highlight.js 语法高亮，支持数十种编程语言
+- **滚动同步**：编辑区和预览区双向滚动联动
+- **快捷格式化**：一键插入 H1/H2/H3、加粗、斜体、下划线、删除线
 - **自动保存**：停止输入 1.5 秒后自动写入
 - **主题切换**：跟随系统 / 浅色 / 深色
 - **会话恢复**：启动时自动恢复上次编辑状态
-- **原生桌面体验**：系统菜单、拖拽打开、最近文件
+- **文件关联**：双击 `.md` / `.markdown` 文件直接用 justmd 打开
+- **拖拽打开**：把 Markdown 文件拖进窗口即可编辑
+- **最近文件**：菜单中快速访问最近打开的文件
 
 ## 快捷键
 
@@ -31,11 +38,13 @@
 
 ```bash
 pnpm install
-pnpm tauri dev
+pnpm dev          # 前端 Vite 开发服务器
+pnpm tauri dev    # 启动 Tauri 桌面应用
 ```
 
 ## 构建
 
 ```bash
-pnpm tauri build
+pnpm build        # 前端生产构建
+pnpm tauri build  # 打包桌面应用安装包
 ```

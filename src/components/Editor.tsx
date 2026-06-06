@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { EditorView, basicSetup } from "codemirror";
-import { EditorState, Compartment } from "@codemirror/state";
+import { EditorState, Compartment, EditorSelection } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
 
 interface EditorProps {
@@ -90,6 +90,66 @@ const baseTheme = EditorView.theme({
 const lightTheme = EditorView.theme({}, { dark: false });
 const darkTheme = EditorView.theme({}, { dark: true });
 
+function toggleWrap(view: EditorView, before: string, after: string = before) {
+  const { state } = view;
+  const changes = state.changeByRange((range) => {
+    const textBefore = state.doc.sliceString(
+      Math.max(0, range.from - before.length),
+      range.from
+    );
+    const textAfter = state.doc.sliceString(
+      range.to,
+      Math.min(state.doc.length, range.to + after.length)
+    );
+
+    if (textBefore === before && textAfter === after) {
+      return {
+        changes: [
+          { from: range.from - before.length, to: range.from, insert: "" },
+          { from: range.to, to: range.to + after.length, insert: "" },
+        ],
+        range: EditorSelection.range(
+          range.from - before.length,
+          range.to - before.length
+        ),
+      };
+    }
+
+    const selected = state.doc.sliceString(range.from, range.to);
+    const insert = `${before}${selected}${after}`;
+    return {
+      changes: { from: range.from, to: range.to, insert },
+      range: EditorSelection.range(
+        range.from + before.length,
+        range.to + before.length
+      ),
+    };
+  });
+  view.dispatch(changes, { scrollIntoView: true });
+  view.focus();
+}
+
+function toggleHeading(view: EditorView, level: number) {
+  const { state } = view;
+  const changes = state.changeByRange((range) => {
+    const line = state.doc.lineAt(range.from);
+    const match = line.text.match(/^(#{0,6})\s*/);
+    const prefix = `${"#".repeat(level)} `;
+
+    if (match) {
+      const newText = prefix + line.text.slice(match[0].length);
+      return {
+        changes: { from: line.from, to: line.to, insert: newText },
+        range: EditorSelection.cursor(line.from + prefix.length),
+      };
+    }
+
+    return { changes: [], range };
+  });
+  view.dispatch(changes, { scrollIntoView: true });
+  view.focus();
+}
+
 function createExtensions(
   isDark: boolean,
   readOnly: boolean | undefined,
@@ -154,7 +214,22 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
 
       viewRef.current = view;
 
+      // Sync gutter width to toolbar padding
+      const syncGutterWidth = () => {
+        const gutters = container.querySelector(".cm-gutters");
+        if (gutters) {
+          const width = gutters.getBoundingClientRect().width;
+          container.style.setProperty("--gutter-width", `${width}px`);
+        }
+      };
+      syncGutterWidth();
+
+      const ro = new ResizeObserver(syncGutterWidth);
+      const gutters = container.querySelector(".cm-gutters");
+      if (gutters) ro.observe(gutters);
+
       return () => {
+        ro.disconnect();
         view.destroy();
         viewRef.current = undefined;
       };
@@ -182,7 +257,60 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       });
     }, [isDark]);
 
-    return <div ref={containerRef} className="editor-wrapper" />;
+    return (
+      <div className="editor-wrapper">
+        <div className={`editor-toolbar ${isDark ? "dark" : ""}`}>
+          <button
+            className="heading-btn"
+            onClick={() => viewRef.current && toggleHeading(viewRef.current, 1)}
+            title="H1"
+          >
+            H1
+          </button>
+          <button
+            className="heading-btn"
+            onClick={() => viewRef.current && toggleHeading(viewRef.current, 2)}
+            title="H2"
+          >
+            H2
+          </button>
+          <button
+            className="heading-btn"
+            onClick={() => viewRef.current && toggleHeading(viewRef.current, 3)}
+            title="H3"
+          >
+            H3
+          </button>
+          <button
+            onClick={() => viewRef.current && toggleWrap(viewRef.current, "**")}
+            title="加粗"
+          >
+            <strong>B</strong>
+          </button>
+          <button
+            onClick={() => viewRef.current && toggleWrap(viewRef.current, "*")}
+            title="斜体"
+          >
+            <em>I</em>
+          </button>
+          <button
+            onClick={() =>
+              viewRef.current && toggleWrap(viewRef.current, "<u>", "</u>")
+            }
+            title="下划线"
+          >
+            <u>U</u>
+          </button>
+          <button
+            onClick={() => viewRef.current && toggleWrap(viewRef.current, "~~")}
+            title="删除线"
+          >
+            <s>S</s>
+          </button>
+        </div>
+        <div ref={containerRef} className="editor-content" />
+      </div>
+    );
   }
 );
 
