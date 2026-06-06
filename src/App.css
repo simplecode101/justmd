@@ -301,21 +301,14 @@ body {
   height: 100%;
 }
 
-.editor-textarea {
-  width: 100%;
+/* CodeMirror overrides */
+.cm-editor {
   height: 100%;
-  padding: 24px 32px;
-  border: none;
-  outline: none;
-  resize: none;
-  overflow: auto;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo,
-    monospace;
-  font-size: 14px;
-  line-height: 1.6;
-  background: var(--editor-bg);
-  color: var(--editor-fg);
-  tab-size: 2;
+}
+
+/* Hide fold gutter (arrow next to line numbers) */
+.cm-foldGutter .cm-gutterElement span {
+  display: none !important;
 }
 
 /* === Modern Scrollbar === */

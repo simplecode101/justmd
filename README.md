@@ -1,4 +1,4 @@
-# fastmd
+# justmd
 
 一个极简的桌面 Markdown 编辑器，基于 Tauri + React + TypeScript。
 

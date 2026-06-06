@@ -8,7 +8,7 @@ use tauri::Manager;
 struct PendingFile(Mutex<Option<String>>);
 
 fn log(msg: &str) {
-    let path = std::env::temp_dir().join("fastmd_debug.log");
+    let path = std::env::temp_dir().join("justmd_debug.log");
     if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&path) {
         let t = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

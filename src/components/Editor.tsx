@@ -1,164 +1,189 @@
-import { useEffect, useImperativeHandle, useRef, useState, forwardRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { EditorView, basicSetup } from "codemirror";
+import { EditorState, Compartment } from "@codemirror/state";
+import { markdown } from "@codemirror/lang-markdown";
 
 interface EditorProps {
   content: string;
   onChange: (value: string) => void;
   isDark: boolean;
   readOnly?: boolean;
-  onScroll?: () => void;
+  onScroll?: (ratio: number) => void;
 }
 
 export interface EditorRef {
   focus: () => void;
-  getTextarea: () => HTMLTextAreaElement | null;
+  getView: () => EditorView | undefined;
+}
+
+const themeCompartment = new Compartment();
+
+const baseTheme = EditorView.theme({
+  "&": {
+    height: "100%",
+    fontSize: "14px",
+  },
+  ".cm-content": {
+    fontFamily:
+      'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
+    padding: "12px 16px",
+    lineHeight: "1.6",
+    caretColor: "var(--editor-fg)",
+  },
+  ".cm-gutters": {
+    fontFamily:
+      'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
+    borderRight: "1px solid var(--border)",
+    backgroundColor: "var(--editor-bg)",
+    color: "var(--editor-fg)",
+  },
+  ".cm-lineNumbers .cm-gutterElement": {
+    padding: "0 8px 0 0",
+    lineHeight: "1.6",
+    minHeight: "calc(14px * 1.6)",
+    opacity: "0.3",
+  },
+  ".cm-activeLineGutter": {
+    backgroundColor: "transparent",
+    opacity: "1",
+  },
+  ".cm-activeLine": {
+    backgroundColor: "transparent",
+  },
+  ".cm-cursor": {
+    borderLeftColor: "var(--editor-fg)",
+  },
+  ".cm-selectionBackground": {
+    background: "var(--button-active-bg)",
+    opacity: "0.3",
+  },
+  "&.cm-focused .cm-selectionBackground": {
+    background: "var(--button-active-bg)",
+    opacity: "0.4",
+  },
+  "&.cm-focused .cm-cursor": {
+    borderLeftColor: "var(--editor-fg)",
+  },
+  ".cm-scroller": {
+    backgroundColor: "var(--editor-bg)",
+    color: "var(--editor-fg)",
+  },
+  ".cm-scroller::-webkit-scrollbar": {
+    width: "5px",
+  },
+  ".cm-scroller::-webkit-scrollbar-track": {
+    background: "transparent",
+  },
+  ".cm-scroller::-webkit-scrollbar-thumb": {
+    background: "transparent",
+    borderRadius: "3px",
+  },
+  "&:hover .cm-scroller::-webkit-scrollbar-thumb": {
+    background: "var(--border)",
+  },
+  ".cm-scroller::-webkit-scrollbar-thumb:hover": {
+    background: "var(--fg)",
+    opacity: "0.2",
+  },
+});
+
+const lightTheme = EditorView.theme({}, { dark: false });
+const darkTheme = EditorView.theme({}, { dark: true });
+
+function createExtensions(
+  isDark: boolean,
+  readOnly: boolean | undefined,
+  onChange: (v: string) => void,
+  onScroll?: (ratio: number) => void
+) {
+  const extensions = [
+    themeCompartment.of(isDark ? darkTheme : lightTheme),
+    baseTheme,
+    basicSetup,
+    markdown(),
+    EditorView.updateListener.of((update) => {
+      if (update.docChanged) {
+        onChange(update.state.doc.toString());
+      }
+    }),
+    EditorState.readOnly.of(readOnly ?? false),
+  ];
+
+  if (onScroll) {
+    extensions.push(
+      EditorView.domEventHandlers({
+        scroll(_event, view) {
+          const scroller = view.scrollDOM;
+          const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+          if (maxScroll > 0) {
+            onScroll(scroller.scrollTop / maxScroll);
+          }
+          return false;
+        },
+      })
+    );
+  }
+
+  return extensions;
 }
 
 export const Editor = forwardRef<EditorRef, EditorProps>(
   ({ content, onChange, isDark, readOnly, onScroll }, ref) => {
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const [findOpen, setFindOpen] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const viewRef = useRef<EditorView | undefined>(undefined);
 
     useImperativeHandle(ref, () => ({
-      focus: () => textareaRef.current?.focus(),
-      getTextarea: () => textareaRef.current,
+      focus: () => viewRef.current?.focus(),
+      getView: () => viewRef.current,
     }));
-    const [findText, setFindText] = useState("");
-    const [replaceText, setReplaceText] = useState("");
-    const [caseSensitive, setCaseSensitive] = useState(false);
 
+    // Initialize once
     useEffect(() => {
-      const handler = (e: KeyboardEvent) => {
-        if (e.key === "f" && (e.ctrlKey || e.metaKey)) {
-          e.preventDefault();
-          setFindOpen(true);
-          setTimeout(() => {
-            document.getElementById("find-input")?.focus();
-          }, 10);
-        }
-        if (e.key === "h" && (e.ctrlKey || e.metaKey)) {
-          e.preventDefault();
-          setFindOpen(true);
-          setTimeout(() => {
-            document.getElementById("find-input")?.focus();
-          }, 10);
-        }
-        if (e.key === "Escape" && findOpen) {
-          setFindOpen(false);
-          textareaRef.current?.focus();
-        }
+      const container = containerRef.current;
+      if (!container) return;
+
+      const state = EditorState.create({
+        doc: content,
+        extensions: createExtensions(isDark, readOnly, onChange, onScroll),
+      });
+
+      const view = new EditorView({
+        state,
+        parent: container,
+      });
+
+      viewRef.current = view;
+
+      return () => {
+        view.destroy();
+        viewRef.current = undefined;
       };
-      window.addEventListener("keydown", handler);
-      return () => window.removeEventListener("keydown", handler);
-    }, [findOpen]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-    const handleFindNext = () => {
-      const ta = textareaRef.current;
-      if (!ta || !findText) return;
-      const text = ta.value;
-      const flags = caseSensitive ? "g" : "gi";
-      const regex = new RegExp(escapeRegExp(findText), flags);
-      const start = ta.selectionEnd;
-      const match = regex.exec(text.slice(start));
-      if (match) {
-        const pos = start + match.index;
-        ta.setSelectionRange(pos, pos + match[0].length);
-        ta.focus();
-        ta.scrollTop = ta.scrollHeight * (ta.selectionStart / text.length);
-      } else {
-        const wrapMatch = regex.exec(text);
-        if (wrapMatch) {
-          ta.setSelectionRange(wrapMatch.index, wrapMatch.index + wrapMatch[0].length);
-          ta.focus();
-        }
+    // Sync content from props
+    useEffect(() => {
+      const view = viewRef.current;
+      if (!view) return;
+      const current = view.state.doc.toString();
+      if (content !== current) {
+        view.dispatch({
+          changes: { from: 0, to: current.length, insert: content },
+        });
       }
-    };
+    }, [content]);
 
-    const handleReplace = () => {
-      const ta = textareaRef.current;
-      if (!ta || !findText) return;
-      const text = ta.value;
-      const flags = caseSensitive ? "g" : "gi";
-      const regex = new RegExp(escapeRegExp(findText), flags);
-      const start = ta.selectionStart;
-      const match = regex.exec(text.slice(start));
-      if (match) {
-        const pos = start + match.index;
-        const before = text.slice(0, pos);
-        const after = text.slice(pos + match[0].length);
-        const newValue = before + replaceText + after;
-        onChange(newValue);
-        setTimeout(() => {
-          ta.setSelectionRange(pos + replaceText.length, pos + replaceText.length);
-          ta.focus();
-        }, 0);
-      }
-    };
+    // Sync theme
+    useEffect(() => {
+      const view = viewRef.current;
+      if (!view) return;
+      view.dispatch({
+        effects: themeCompartment.reconfigure(isDark ? darkTheme : lightTheme),
+      });
+    }, [isDark]);
 
-    const handleReplaceAll = () => {
-      const ta = textareaRef.current;
-      if (!ta || !findText) return;
-      const text = ta.value;
-      const flags = caseSensitive ? "g" : "gi";
-      const regex = new RegExp(escapeRegExp(findText), flags);
-      const newValue = text.replace(regex, replaceText);
-      if (newValue !== text) {
-        onChange(newValue);
-      }
-    };
-
-    return (
-      <div className="editor-wrapper">
-        <textarea
-          ref={textareaRef}
-          className={`editor-textarea ${isDark ? "dark" : ""}`}
-          value={content}
-          onChange={(e) => onChange(e.target.value)}
-          onScroll={onScroll}
-          readOnly={readOnly}
-          spellCheck={false}
-        />
-        {findOpen && (
-          <div className={`find-replace-box ${isDark ? "dark" : ""}`}>
-            <input
-              id="find-input"
-              type="text"
-              placeholder="查找"
-              value={findText}
-              onChange={(e) => setFindText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleFindNext();
-              }}
-            />
-            <input
-              type="text"
-              placeholder="替换"
-              value={replaceText}
-              onChange={(e) => setReplaceText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleReplace();
-              }}
-            />
-            <label>
-              <input
-                type="checkbox"
-                checked={caseSensitive}
-                onChange={(e) => setCaseSensitive(e.target.checked)}
-              />
-              区分大小写
-            </label>
-            <button onClick={handleFindNext}>查找下一个</button>
-            <button onClick={handleReplace}>替换</button>
-            <button onClick={handleReplaceAll}>全部替换</button>
-            <button onClick={() => setFindOpen(false)}>关闭</button>
-          </div>
-        )}
-      </div>
-    );
+    return <div ref={containerRef} className="editor-wrapper" />;
   }
 );
-
-function escapeRegExp(string: string) {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 Editor.displayName = "Editor";

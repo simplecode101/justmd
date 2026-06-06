@@ -1,12 +1,12 @@
 [package]
-name = "fastmd"
+name = "justmd"
 version = "0.1.0"
 description = "A minimal Markdown editor"
 authors = ["you"]
 edition = "2021"
 
 [lib]
-name = "fastmd_lib"
+name = "justmd_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

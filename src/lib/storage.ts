@@ -1,9 +1,9 @@
 import type { Session, RecentFile, ThemeMode } from "../types";
 
 const KEYS = {
-  session: "fastmd:session",
-  recentFiles: "fastmd:recent-files",
-  theme: "fastmd:theme",
+  session: "justmd:session",
+  recentFiles: "justmd:recent-files",
+  theme: "justmd:theme",
 };
 
 export function saveSession(session: Partial<Session>) {

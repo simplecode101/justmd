@@ -22,7 +22,6 @@ import {
 } from "./lib/storage";
 import {
   countWords,
-  findHeadingNearCursor,
   getFileName,
   isMarkdownFile,
 } from "./lib/utils";
@@ -118,7 +117,7 @@ export default function App() {
 
   // Update window title
   useEffect(() => {
-    const title = filePath ? `${fileName} - fastmd` : "fastmd";
+    const title = filePath ? `${fileName} - justmd` : "justmd";
     appWindow.setTitle(title);
   }, [filePath, fileName]);
 
@@ -310,17 +309,13 @@ export default function App() {
   }, [loadFile]);
 
   // Scroll sync
-  const handleEditorScroll = useCallback(() => {
-    if (mode !== "split") return;
-    const ta = editorRef.current?.getTextarea();
-    if (!ta) return;
-    const text = ta.value;
-    const cursorLineStart = text.lastIndexOf("\n", ta.selectionStart) + 1;
-    const heading = findHeadingNearCursor(text, cursorLineStart);
-    if (heading) {
-      previewRef.current?.scrollToHeading(heading);
-    }
-  }, [mode]);
+  const handleEditorScroll = useCallback(
+    (ratio: number) => {
+      if (mode !== "split") return;
+      previewRef.current?.scrollToRatio(ratio);
+    },
+    [mode]
+  );
 
   // Splitter drag
   const handleSplitterMouseDown = useCallback(() => {
@@ -450,7 +445,7 @@ export default function App() {
         }}
       >
         <div className="header-left">
-          <img src={appIcon} alt="fastmd" className="app-icon" />
+          <img src={appIcon} alt="justmd" className="app-icon" />
           <CustomMenu
             menus={[
               { label: "文件", items: fileMenuItems },
