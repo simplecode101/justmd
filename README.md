@@ -2,9 +2,9 @@
 
 中文 | [English](README_EN.md)
 
-> 在网上搜索很少有纯粹的 Markdown 编辑器——Typora 收费，编码领域的 IDE 又太重、冗余功能太多，在线工具不是本地客户端，Windows 自带的记事本写 Markdown 又不太舒服。所以我想做一个**普通人也能轻松上手的轻量级 Markdown 编辑和预览软件**，不堆砌功能，只专注于写好、看好 Markdown。
+> 找了一圈发现，真正纯粹的 Markdown 编辑器并不多。Typora 开始收费了，VS Code 这类工具又太「程序员向」，在线编辑器不是本地应用，Windows 记事本写 Markdown 又实在难受。于是就有了 justmd——一个简单、轻量的本地 Markdown 编辑器，没有花哨的功能，就是让你舒服地写、舒服地看。
 
-一个极简的桌面 Markdown 编辑器，基于 Tauri + React + CodeMirror 6。
+一个极简的桌面 Markdown 编辑器，基于 Tauri + React + CodeMirror 6。  
 
 ## 功能
 
@@ -20,19 +20,6 @@
 - **文件关联**：双击 `.md` / `.markdown` 文件直接用 justmd 打开
 - **拖拽打开**：把 Markdown 文件拖进窗口即可编辑
 - **最近文件**：菜单中快速访问最近打开的文件
-
-## 快捷键
-
-| 快捷键 | 功能 |
-|--------|------|
-| `Ctrl+N` | 新建 |
-| `Ctrl+O` | 打开 |
-| `Ctrl+S` | 保存 |
-| `Ctrl+Shift+S` | 另存为 |
-| `Ctrl+F` | 查找 |
-| `Ctrl+H` | 查找替换 |
-| `Ctrl+1/2/3` | 切换编辑/分屏/预览模式 |
-| `Ctrl+D` | 切换主题 |
 
 ## 开发
 

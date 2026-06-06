@@ -2,7 +2,7 @@
 
 English | [中文](README.md)
 
-> There are surprisingly few dedicated Markdown editors out there. Typora is paid, developer-focused IDEs are bloated with redundant features, online tools are not native desktop apps, and Windows Notepad is just not a pleasant Markdown experience. So I built **justmd** — a lightweight, focused Markdown editor and previewer for everyday users. No feature bloat, just write and read Markdown comfortably.
+> I looked around and realized there aren't many dedicated Markdown editors out there. Typora went paid, VS Code is too developer-centric, online editors aren't native apps, and Windows Notepad is just painful for Markdown. So I built justmd — a simple, lightweight local Markdown editor. No bloat, no fuss, just a pleasant place to write and read.
 
 A minimal desktop Markdown editor powered by Tauri + React + CodeMirror 6.
 
@@ -20,19 +20,6 @@ A minimal desktop Markdown editor powered by Tauri + React + CodeMirror 6.
 - **File Association**: Double-click `.md` / `.markdown` files to open directly in justmd
 - **Drag & Drop**: Drop a Markdown file into the window to start editing
 - **Recent Files**: Quickly reopen recently edited files from the menu
-
-## Shortcuts
-
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl+N` | New file |
-| `Ctrl+O` | Open file |
-| `Ctrl+S` | Save |
-| `Ctrl+Shift+S` | Save as |
-| `Ctrl+F` | Find |
-| `Ctrl+H` | Find & Replace |
-| `Ctrl+1/2/3` | Switch Edit / Split / Preview mode |
-| `Ctrl+D` | Toggle theme |
 
 ## Development
 
