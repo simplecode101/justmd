@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { readTextFile, exists, writeTextFile } from "@tauri-apps/plugin-fs";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { invoke } from "@tauri-apps/api/core";
 import type { EditorMode, ThemeMode } from "./types";
 import { Editor, type EditorRef } from "./components/Editor";
 import { Preview, type PreviewRef } from "./components/Preview";
@@ -9,6 +10,7 @@ import { StatusBar } from "./components/StatusBar";
 import { ModeSwitch } from "./components/ModeSwitch";
 import { CustomMenu, type MenuItem } from "./components/CustomMenu";
 import { WindowControls } from "./components/WindowControls";
+import appIcon from "./assets/my-icon.png";
 import { useAutoSave } from "./hooks/useAutoSave";
 import {
   loadSession,
@@ -51,7 +53,7 @@ export default function App() {
   const containerRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
   const lastExternalCheckRef = useRef(0);
-  const dragTimerRef = useRef<number | null>(null);
+  const headerDragRef = useRef<{ x: number; y: number } | null>(null);
 
   const effectiveTheme = useMemo(() => getEffectiveTheme(theme), [theme]);
   const wordCount = useMemo(() => countWords(content), [content]);
@@ -170,13 +172,14 @@ export default function App() {
   }, []);
 
   const loadFile = useCallback(async (path: string) => {
+    invoke("log_frontend", { msg: `loadFile: ${path}` });
     if (!isMarkdownFile(path)) {
       setStatusMsg("仅支持 .md 和 .markdown 文件");
       return;
     }
     try {
-      const stillExists = await exists(path);
-      if (!stillExists) {
+      const ok = await invoke<boolean>("file_exists", { path });
+      if (!ok) {
         setStatusMsg("文件不存在");
         setRecentFiles((prev) => {
           const next = prev.filter((f) => f.path !== path);
@@ -185,16 +188,34 @@ export default function App() {
         });
         return;
       }
-      const text = await readTextFile(path);
+      const text = await invoke<string>("read_file", { path });
       setFilePath(path);
       setContent(text);
       addRecentFile(path);
       setStatusMsg(`已打开 ${getFileName(path)}`);
     } catch (err) {
-      setStatusMsg("打开文件失败");
-      console.error(err);
+      setStatusMsg("打开文件失败: " + String(err));
     }
   }, [addRecentFile]);
+
+  // File association: Rust stores CLI file path in PendingFile state.
+  // Cold start: retrieve on mount.
+  // Hot start: poll every 500ms for new pending files.
+  useEffect(() => {
+    const poll = () => {
+      invoke<string | null>("get_pending_file")
+        .then((path) => {
+          invoke("log_frontend", { msg: `poll result: ${path ?? "null"}` });
+          if (path) loadFile(path);
+        })
+        .catch((e) => {
+          invoke("log_frontend", { msg: `poll error: ${String(e)}` });
+        });
+    };
+    poll();
+    const interval = setInterval(poll, 500);
+    return () => clearInterval(interval);
+  }, [loadFile]);
 
   const handleSave = useCallback(async () => {
     if (filePath) {
@@ -267,31 +288,26 @@ export default function App() {
     [handleNew, handleOpen, handleSave, handleSaveAs, loadFile]
   );
 
-  // Drag and drop
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    containerRef.current?.classList.add("drag-over");
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    containerRef.current?.classList.remove("drag-over");
-  }, []);
-
-  const handleDrop = useCallback(
-    async (e: React.DragEvent) => {
-      e.preventDefault();
-      containerRef.current?.classList.remove("drag-over");
-      const items = Array.from(e.dataTransfer.files);
-      if (items.length > 0) {
-        const path = (items[0] as any).path as string;
-        if (path) {
-          await loadFile(path);
+  // Drag and drop via Tauri native API (more reliable than DOM events)
+  useEffect(() => {
+    const unlisten = appWindow.onDragDropEvent((event) => {
+      const { type } = event.payload;
+      if (type === "enter" || type === "over") {
+        containerRef.current?.classList.add("drag-over");
+      } else if (type === "leave") {
+        containerRef.current?.classList.remove("drag-over");
+      } else if (type === "drop") {
+        containerRef.current?.classList.remove("drag-over");
+        const paths = event.payload.paths;
+        if (paths.length > 0) {
+          loadFile(paths[0]);
         }
       }
-    },
-    [loadFile]
-  );
+    });
+    return () => {
+      unlisten.then((f) => f());
+    };
+  }, [loadFile]);
 
   // Scroll sync
   const handleEditorScroll = useCallback(() => {
@@ -327,6 +343,30 @@ export default function App() {
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
       }
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
+
+  // Header drag: movement-based detection (not time-based).
+  // On mousedown we record the starting position; once the cursor moves
+  // more than 3px the OS native drag is triggered immediately.
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!headerDragRef.current) return;
+      const dx = e.clientX - headerDragRef.current.x;
+      const dy = e.clientY - headerDragRef.current.y;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        headerDragRef.current = null;
+        appWindow.startDragging();
+      }
+    };
+    const handleMouseUp = () => {
+      headerDragRef.current = null;
     };
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
@@ -388,9 +428,6 @@ export default function App() {
     <div
       ref={containerRef}
       className={`app ${effectiveTheme === "dark" ? "dark" : ""}`}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
     >
       <header
         className="app-header"
@@ -398,16 +435,11 @@ export default function App() {
           const target = e.target as HTMLElement;
           const interactive = target.closest("button, input, a, .menu-dropdown, .menu-group");
           if (!interactive) {
-            dragTimerRef.current = window.setTimeout(() => {
-              appWindow.startDragging();
-            }, 200);
+            headerDragRef.current = { x: e.clientX, y: e.clientY };
           }
         }}
         onDoubleClick={(e) => {
-          if (dragTimerRef.current) {
-            clearTimeout(dragTimerRef.current);
-            dragTimerRef.current = null;
-          }
+          headerDragRef.current = null;
           e.preventDefault();
           window.getSelection()?.removeAllRanges();
           const target = e.target as HTMLElement;
@@ -418,7 +450,7 @@ export default function App() {
         }}
       >
         <div className="header-left">
-          <span className="app-name">fastmd</span>
+          <img src={appIcon} alt="fastmd" className="app-icon" />
           <CustomMenu
             menus={[
               { label: "文件", items: fileMenuItems },

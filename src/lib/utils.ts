@@ -1,7 +1,7 @@
 export function getFileName(path: string | null): string {
-  if (!path) return "未命名";
+  if (!path) return "* 未命名";
   const parts = path.replace(/\\/g, "/").split("/");
-  return parts[parts.length - 1] || "未命名";
+  return parts[parts.length - 1] || "* 未命名";
 }
 
 export function countWords(text: string): number {
