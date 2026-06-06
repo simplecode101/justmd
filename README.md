@@ -1,6 +1,6 @@
 # justmd
 
-[English](README_EN.md) | 中文
+中文 | [English](README_EN.md)
 
 > 在网上搜索很少有纯粹的 Markdown 编辑器——Typora 收费，编码领域的 IDE 又太重、冗余功能太多，在线工具不是本地客户端，Windows 自带的记事本写 Markdown 又不太舒服。所以我想做一个**普通人也能轻松上手的轻量级 Markdown 编辑和预览软件**，不堆砌功能，只专注于写好、看好 Markdown。
 
