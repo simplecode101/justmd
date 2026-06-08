@@ -3,18 +3,21 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
 use std::sync::Mutex;
+use std::time::Instant;
 use tauri::Manager;
 
 struct PendingFile(Mutex<Option<String>>);
 
 fn log(msg: &str) {
     let path = std::env::temp_dir().join("justmd_debug.log");
+    let t = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default();
+    let line = format!("[{:.3}] {}", t.as_secs_f64(), msg);
     if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&path) {
-        let t = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default();
-        let _ = writeln!(f, "[{:.3}] {}", t.as_secs_f64(), msg);
+        let _ = writeln!(f, "{}", line);
     }
+    println!("{}", line);
 }
 
 #[tauri::command]
@@ -41,6 +44,7 @@ fn file_exists(path: String) -> bool {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let app_start = Instant::now();
     let raw_args: Vec<String> = std::env::args().collect();
     log(&format!("start pid={} args={:?}", std::process::id(), raw_args));
 
@@ -48,6 +52,10 @@ pub fn run() {
     log(&format!("initial pending={:?}", initial));
 
     tauri::Builder::default()
+        .setup(move |_app| {
+            log(&format!("rust init done: {}ms", app_start.elapsed().as_millis()));
+            Ok(())
+        })
         .manage(PendingFile(Mutex::new(initial)))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())

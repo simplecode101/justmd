@@ -19,6 +19,8 @@ import {
   saveRecentFiles,
   loadTheme,
   saveTheme,
+  loadFileMode,
+  saveFileMode,
 } from "./lib/storage";
 import {
   countWords,
@@ -41,11 +43,12 @@ function getEffectiveTheme(theme: ThemeMode | "system"): ThemeMode {
 export default function App() {
   const [content, setContent] = useState("");
   const [filePath, setFilePath] = useState<string | null>(null);
-  const [mode, setMode] = useState<EditorMode>("split");
+  const [mode, setMode] = useState<EditorMode>("preview");
   const [splitRatio, setSplitRatio] = useState(0.5);
   const [theme, setTheme] = useState<ThemeMode | "system">("system");
   const [statusMsg, setStatusMsg] = useState("");
   const [recentFiles, setRecentFiles] = useState(loadRecentFiles());
+  const [ready, setReady] = useState(false);
 
   const editorRef = useRef<EditorRef>(null);
   const previewRef = useRef<PreviewRef>(null);
@@ -67,37 +70,82 @@ export default function App() {
   // Initialize
   useEffect(() => {
     const init = async () => {
+      const t0 = performance.now();
+      const perf = (window as any).__perf || {};
+      perf.init = t0;
+      const logStep = (label: string) => {
+        const ms = Math.round(performance.now() - t0);
+        const line = `[init] ${label}: +${ms}ms`;
+        invoke("log_frontend", { msg: line });
+        console.log(line);
+      };
+
       mermaid.initialize({ startOnLoad: false, securityLevel: "strict" });
+      logStep("mermaid init");
 
       const savedTheme = loadTheme();
       setTheme(savedTheme);
       document.documentElement.classList.toggle("dark", getEffectiveTheme(savedTheme) === "dark");
+      logStep("theme load");
 
       const session = loadSession();
+      logStep("session load");
+
       if (session?.content !== undefined) {
         setContent(session.content);
+        logStep("content restore");
       }
       if (session?.filePath) {
         const stillExists = await exists(session.filePath);
+        logStep(`file exists check (${stillExists})`);
         if (stillExists) {
           try {
             const disk = await readTextFile(session.filePath);
+            const savedMode = loadFileMode(session.filePath);
+            logStep("file read done");
             setFilePath(session.filePath);
             setContent(disk);
+            setMode(savedMode ?? "preview");
             setStatusMsg("已恢复上次会话");
           } catch {
             setFilePath(null);
+            setMode("preview");
             setStatusMsg("上次文件无法读取");
           }
         } else {
+          setFilePath(null);
+          setMode("preview");
           setStatusMsg("上次打开的文件已不存在");
         }
       }
-      if (session?.mode) setMode(session.mode);
       if (session?.splitRatio !== undefined) setSplitRatio(session.splitRatio);
+      setReady(true);
+      perf.ready = performance.now();
+      logStep("ready (total)");
+
+      const total = Math.round(perf.ready);
+      const html2js = Math.round((perf.js || perf.html) - perf.html);
+      const js2mount = Math.round((perf.mount || perf.js) - (perf.js || perf.html));
+      const mount2init = Math.round(perf.init - (perf.mount || perf.js));
+      const init2ready = Math.round(perf.ready - perf.init);
+      const summary = `[perf] TOTAL=${total}ms | html→js=${html2js}ms | js→mount=${js2mount}ms | mount→init=${mount2init}ms | init→ready=${init2ready}ms`;
+      invoke("log_frontend", { msg: summary });
+      console.log(summary);
     };
     init();
   }, []);
+
+  // Hide native loading when ready
+  useEffect(() => {
+    if (!ready) return;
+    const loading = document.getElementById("app-loading");
+    if (loading) {
+      loading.classList.add("hidden");
+      setTimeout(() => {
+        loading.style.display = "none";
+      }, 350);
+    }
+  }, [ready]);
 
   // Theme change
   useEffect(() => {
@@ -112,8 +160,15 @@ export default function App() {
 
   // Save session
   useEffect(() => {
-    saveSession({ filePath, content, mode, splitRatio, theme });
-  }, [filePath, content, mode, splitRatio, theme]);
+    saveSession({ filePath, content, splitRatio, theme });
+  }, [filePath, content, splitRatio, theme]);
+
+  // Save per-file mode
+  useEffect(() => {
+    if (filePath) {
+      saveFileMode(filePath, mode);
+    }
+  }, [mode, filePath]);
 
   // Update window title
   useEffect(() => {
@@ -157,6 +212,7 @@ export default function App() {
   const handleNew = useCallback(() => {
     setFilePath(null);
     setContent("");
+    setMode("preview");
     setStatusMsg("新建文档");
   }, []);
 
@@ -188,8 +244,10 @@ export default function App() {
         return;
       }
       const text = await invoke<string>("read_file", { path });
+      const savedMode = loadFileMode(path);
       setFilePath(path);
       setContent(text);
+      setMode(savedMode ?? "preview");
       addRecentFile(path);
       setStatusMsg(`已打开 ${getFileName(path)}`);
     } catch (err) {
@@ -269,9 +327,6 @@ export default function App() {
         }
       } else if (menuLabel === "视图") {
         switch (itemId) {
-          case "mode_edit":
-            setMode("edit");
-            break;
           case "mode_split":
             setMode("split");
             break;
@@ -410,9 +465,8 @@ export default function App() {
 
   const viewMenuItems = useMemo(
     () => [
-      { id: "mode_edit", label: "编辑模式", shortcut: "Ctrl+1" },
-      { id: "mode_split", label: "编辑+预览", shortcut: "Ctrl+2" },
-      { id: "mode_preview", label: "纯预览", shortcut: "Ctrl+3" },
+      { id: "mode_preview", label: "预览模式", shortcut: "Ctrl+1" },
+      { id: "mode_split", label: "双屏模式", shortcut: "Ctrl+2" },
       { id: "separator-1", label: "", separator: true },
       { id: "toggle_theme", label: "切换主题", shortcut: "Ctrl+D" },
     ],
@@ -422,7 +476,7 @@ export default function App() {
   return (
     <div
       ref={containerRef}
-      className={`app ${effectiveTheme === "dark" ? "dark" : ""}`}
+      className={`app ${effectiveTheme === "dark" ? "dark" : ""} ${ready ? "ready" : ""}`}
     >
       <header
         className="app-header"
@@ -467,10 +521,10 @@ export default function App() {
       </header>
 
       <main className="app-main">
-        {(mode === "edit" || mode === "split") && (
+        {mode === "split" && (
           <div
             className="editor-pane"
-            style={{ width: mode === "edit" ? "100%" : `${splitRatio * 100}%` }}
+            style={{ width: `${splitRatio * 100}%` }}
           >
             <Editor
               ref={editorRef}

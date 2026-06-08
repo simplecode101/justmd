@@ -59,7 +59,12 @@ body {
   height: 100vh;
   background: var(--bg);
   color: var(--fg);
-  transition: background 0.2s, color 0.2s;
+  transition: background 0.2s, color 0.2s, opacity 0.35s ease;
+  opacity: 0;
+}
+
+.app.ready {
+  opacity: 1;
 }
 
 .app.drag-over {
@@ -73,7 +78,7 @@ body {
   align-items: center;
   justify-content: space-between;
   height: 32px;
-  padding: 0 8px;
+  padding: 0;
   background: var(--header-bg);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
@@ -121,11 +126,11 @@ body {
 
 .menu-label {
   height: 32px;
-  width: 32px;
+  min-width: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  padding: 0 10px;
   border: none;
   border-radius: 0;
   background: transparent;
@@ -476,6 +481,8 @@ body {
   line-height: 1.6;
   color: var(--fg);
   word-wrap: break-word;
+  max-width: 768px;
+  margin: 0 auto;
 }
 
 .markdown-body h1,

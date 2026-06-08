@@ -1,9 +1,10 @@
-import type { Session, RecentFile, ThemeMode } from "../types";
+import type { Session, RecentFile, ThemeMode, EditorMode } from "../types";
 
 const KEYS = {
   session: "justmd:session",
   recentFiles: "justmd:recent-files",
   theme: "justmd:theme",
+  fileModes: "justmd:file-modes",
 };
 
 export function saveSession(session: Partial<Session>) {
@@ -46,8 +47,25 @@ export function getDefaultSession(): Session {
   return {
     filePath: null,
     content: "",
-    mode: "split",
     splitRatio: 0.5,
     theme: "system",
   };
+}
+
+export function saveFileMode(path: string, mode: EditorMode) {
+  const raw = localStorage.getItem(KEYS.fileModes);
+  const map: Record<string, EditorMode> = raw ? JSON.parse(raw) : {};
+  map[path] = mode;
+  localStorage.setItem(KEYS.fileModes, JSON.stringify(map));
+}
+
+export function loadFileMode(path: string): EditorMode | null {
+  const raw = localStorage.getItem(KEYS.fileModes);
+  if (!raw) return null;
+  try {
+    const map: Record<string, EditorMode> = JSON.parse(raw);
+    return map[path] || null;
+  } catch {
+    return null;
+  }
 }

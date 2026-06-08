@@ -26,9 +26,12 @@ const baseTheme = EditorView.theme({
   ".cm-content": {
     fontFamily:
       'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
-    padding: "12px 16px",
+    padding: "0 16px",
     lineHeight: "1.6",
     caretColor: "var(--editor-fg)",
+  },
+  ".cm-line": {
+    padding: "0",
   },
   ".cm-gutters": {
     fontFamily:
@@ -37,10 +40,12 @@ const baseTheme = EditorView.theme({
     backgroundColor: "var(--editor-bg)",
     color: "var(--editor-fg)",
   },
+  ".cm-gutter": {
+    paddingTop: "0",
+  },
   ".cm-lineNumbers .cm-gutterElement": {
     padding: "0 8px 0 0",
     lineHeight: "1.6",
-    minHeight: "calc(14px * 1.6)",
     opacity: "0.3",
   },
   ".cm-activeLineGutter": {
@@ -65,6 +70,7 @@ const baseTheme = EditorView.theme({
     borderLeftColor: "var(--editor-fg)",
   },
   ".cm-scroller": {
+    lineHeight: "1.6",
     backgroundColor: "var(--editor-bg)",
     color: "var(--editor-fg)",
   },
