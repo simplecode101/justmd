@@ -19,9 +19,9 @@ That's why I built justmd.
 A minimal desktop Markdown editor powered by Tauri + React + CodeMirror 6.
 ## Preview
 ### Dark
-![dark](dark.png)
+![dark](./dark.png)
 ### Light
-![light](light.png)
+![light](./light.png)
 ## Features
 
 - **Three View Modes**: Edit / Edit+Preview / Preview
