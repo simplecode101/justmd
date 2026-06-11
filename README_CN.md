@@ -12,6 +12,11 @@
 
 > 一个极简的桌面 Markdown 编辑器，基于 Tauri + React + CodeMirror 6。  
 
+## 预览
+### 深色
+![dark](dark.png)
+### 浅色
+![light](light.png)
 ## 主要功能
 
 - **三态切换**：编辑 / 编辑+预览 / 纯预览
